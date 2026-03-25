@@ -1,26 +1,24 @@
 // app/(tabs)/Carrito.tsx
-
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import {
-    clearCart,
-    getCart,
-    removeFromCart,
-    saveCart,
-    subscribe,
+  clearCart,
+  getCart,
+  removeFromCart,
+  saveCart,
+  subscribe,
 } from "../../utils/cartStore";
 
 const API = "http://127.0.0.1:3000/api";
-// ⚠️ CAMBIA ESTA IP POR LA DE TU PC
 
 export default function Carrito() {
   const [productos, setProductos] = useState<any[]>([]);
@@ -49,14 +47,13 @@ export default function Carrito() {
   const calcularTotal = () =>
     productos.reduce(
       (sum, p) => sum + Number(p.precio) * Number(p.cantidad),
-      0,
+      0
     );
 
   const aumentarCantidad = async (id: number) => {
     const nuevo = productos.map((p) =>
-      p.id_producto === id ? { ...p, cantidad: Number(p.cantidad) + 1 } : p,
+      p.id_producto === id ? { ...p, cantidad: Number(p.cantidad) + 1 } : p
     );
-
     setProductos(nuevo);
     await saveCart(nuevo);
   };
@@ -64,10 +61,9 @@ export default function Carrito() {
   const disminuirCantidad = async (id: number) => {
     const nuevo = productos
       .map((p) =>
-        p.id_producto === id ? { ...p, cantidad: Number(p.cantidad) - 1 } : p,
+        p.id_producto === id ? { ...p, cantidad: Number(p.cantidad) - 1 } : p
       )
       .filter((p) => p.cantidad > 0);
-
     setProductos(nuevo);
     await saveCart(nuevo);
   };
@@ -84,49 +80,49 @@ export default function Carrito() {
   };
 
   const realizarVenta = async () => {
-    const total = calcularTotal();
-
     if (productos.length === 0) {
       Alert.alert("Carrito vacío");
       return;
     }
 
+    const total = calcularTotal();
+    console.log("📤 POST /api/ventas — productos:", productos.length, "total:", total);
+
     try {
       const resp = await fetch(`${API}/ventas`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productos, total }),
       });
 
-      const data = await resp.json();
+      console.log("📥 POST status:", resp.status);
+      const data = await resp.json().catch(() => ({}));
+      console.log("📥 POST response:", data);
 
-      if (!data.id_venta) {
-        Alert.alert("Error creando venta");
+      if (!resp.ok || !data.id_venta) {
+        Alert.alert("Error", data.error || "No se pudo crear la venta");
         return;
       }
 
       await clearCart();
       setProductos([]);
-
       obtenerTicket(data.id_venta);
+
     } catch (err) {
-      console.log(err);
+      console.log("❌ Error venta:", err);
       Alert.alert("Error conectando con servidor");
     }
   };
 
   const obtenerTicket = async (id: number) => {
+    console.log("📥 GET /api/ventas/:id", id);
     try {
       const resp = await fetch(`${API}/ventas/${id}`);
       const data = await resp.json();
-
-      console.log("TICKET:", data);
-
+      console.log("🧾 Ticket:", data);
       setTicket(data);
     } catch (err) {
-      console.log("error ticket", err);
+      console.log("❌ Error ticket:", err);
     }
   };
 
@@ -183,25 +179,17 @@ export default function Carrito() {
         <Text style={styles.textoBoton}>🧹 VACIAR</Text>
       </TouchableOpacity>
 
-      {/* TICKET */}
-
       {ticket && (
         <View style={styles.ticket}>
           <Text style={styles.ticketTitle}>🧾 TICKET DE VENTA</Text>
 
-          {(ticket.productos || ticket.detalle || []).map(
-            (p: any, i: number) => (
-              <View key={i} style={styles.ticketRow}>
-                <Text style={styles.ticketNombre}>{p.nombre}</Text>
-
-                <Text>
-                  {p.cantidad} x ${p.precio_unitario || p.precio}
-                </Text>
-
-                <Text>${p.subtotal || p.precio * p.cantidad}</Text>
-              </View>
-            ),
-          )}
+          {(ticket.productos || ticket.detalle || []).map((p: any, i: number) => (
+            <View key={i} style={styles.ticketRow}>
+              <Text style={styles.ticketNombre}>{p.nombre}</Text>
+              <Text>{p.cantidad} x ${p.precio_unitario || p.precio}</Text>
+              <Text>${p.subtotal || p.precio * p.cantidad}</Text>
+            </View>
+          ))}
 
           <Text style={styles.ticketTotal}>
             TOTAL: ${ticket.total || ticket.venta?.total}
@@ -213,111 +201,22 @@ export default function Carrito() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#f5f6fa",
-  },
-
-  titulo: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 15,
-  },
-
-  item: {
-    backgroundColor: "#fff",
-    padding: 15,
-    marginBottom: 10,
-    borderRadius: 10,
-  },
-
-  nombre: {
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-
-  cantidadRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 10,
-  },
-
-  botonCantidad: {
-    backgroundColor: "#3498db",
-    padding: 10,
-    borderRadius: 5,
-  },
-
-  textoCantidad: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-
-  cantidad: {
-    marginHorizontal: 15,
-    fontSize: 18,
-  },
-
-  botonEliminar: {
-    backgroundColor: "#e74c3c",
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-    alignItems: "center",
-  },
-
-  total: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginTop: 10,
-  },
-
-  boton: {
-    backgroundColor: "#27ae60",
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 20,
-  },
-
-  botonVaciar: {
-    backgroundColor: "#e67e22",
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-
-  textoBoton: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "bold",
-  },
-
-  ticket: {
-    marginTop: 40,
-    padding: 20,
-    backgroundColor: "#fff",
-    borderRadius: 10,
-  },
-
-  ticketTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-
-  ticketRow: {
-    marginBottom: 10,
-  },
-
-  ticketNombre: {
-    fontWeight: "bold",
-  },
-
-  ticketTotal: {
-    marginTop: 10,
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  container: { flex: 1, padding: 20, backgroundColor: "#f5f6fa" },
+  titulo: { fontSize: 22, fontWeight: "bold", marginBottom: 15 },
+  item: { backgroundColor: "#fff", padding: 15, marginBottom: 10, borderRadius: 10 },
+  nombre: { fontWeight: "bold", fontSize: 16 },
+  cantidadRow: { flexDirection: "row", alignItems: "center", marginVertical: 10 },
+  botonCantidad: { backgroundColor: "#3498db", padding: 10, borderRadius: 5 },
+  textoCantidad: { color: "white", fontSize: 18, fontWeight: "bold" },
+  cantidad: { marginHorizontal: 15, fontSize: 18 },
+  botonEliminar: { backgroundColor: "#e74c3c", padding: 10, borderRadius: 5, marginTop: 10, alignItems: "center" },
+  total: { fontSize: 22, fontWeight: "bold", marginTop: 10 },
+  boton: { backgroundColor: "#27ae60", padding: 15, borderRadius: 10, marginTop: 20 },
+  botonVaciar: { backgroundColor: "#e67e22", padding: 15, borderRadius: 10, marginTop: 10 },
+  textoBoton: { color: "#fff", textAlign: "center", fontWeight: "bold" },
+  ticket: { marginTop: 40, padding: 20, backgroundColor: "#fff", borderRadius: 10 },
+  ticketTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
+  ticketRow: { marginBottom: 10 },
+  ticketNombre: { fontWeight: "bold" },
+  ticketTotal: { marginTop: 10, fontSize: 18, fontWeight: "bold" },
 });
